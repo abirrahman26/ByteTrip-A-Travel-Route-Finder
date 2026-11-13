@@ -60,7 +60,7 @@ Dhaka,Tangail,200,87,100
 Dinajpur,Gaibandha,130,60,85
 Dinajpur,Joypurhat,120,55,80
 Dinajpur,Nilphamari,100,45,70
-Dinajpur,Panchagar,110,50,75
+Dinajpur,Panchagarh,110,50,75
 Dinajpur,Rangpur,140,65,90
 Dinajpur,Thakurgaon,120,55,80
 Faridpur,Gopalganj,120,50,75
@@ -109,7 +109,6 @@ Kishoreganj,Mymensingh,130,60,90
 Kishoreganj,Narsingdi,90,35,60
 Kishoreganj,Netrokona,120,55,85
 Kishoreganj,Sunamganj,180,85,120
-Kurigram,Lalmonir,100,45,65
 Kurigram,Lalmonirhat,100,45,65
 Kurigram,Rangpur,120,55,80
 Kushtia,Meherpur,80,35,50
@@ -141,10 +140,10 @@ Natore,Pabna,100,45,65
 Natore,Rajshahi,90,40,60
 Natore,Sirajganj,110,50,70
 Netrokona,Sunamganj,100,45,65
-Nilphamari,Panchagar,80,35,50
+Nilphamari,Panchagarh,80,35,50
 Nilphamari,Rangpur,120,55,80
 Pabna,Rajbari,130,60,90
 Pabna,Sirajganj,110,50,70
-Panchagar,Thakurgaon,70,30,45
+Panchagarh,Thakurgaon,70,30,45
 Sirajganj,Tangail,110,65,90
 Sunamganj,Sylhet,90,40,60

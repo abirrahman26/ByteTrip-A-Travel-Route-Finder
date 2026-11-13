@@ -15,7 +15,9 @@ DISTRICT_RENAMES = {
     "Jessore": "Jashore",
     "Jhalokathi": "Jhalokati",
     "Laksmipur": "Lakshmipur",
+    "Lalmonir": "Lalmonirhat",
     "Narshingdi": "Narsingdi",
+    "Panchagar": "Panchagarh",
     "Shariyatpur": "Shariatpur",
 }
 
