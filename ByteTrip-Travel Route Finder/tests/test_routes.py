@@ -6,7 +6,17 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import app, districts, graph, bfs_fewest_legs, dijkstra, totals_along_path
+from app import (
+    Metric,
+    app,
+    bfs_fewest_legs,
+    compute_all_routes,
+    dijkstra,
+    districts,
+    graph,
+    totals_along_path,
+)
+from clean_routes import clean_routes
 
 
 def small_graph():
@@ -25,6 +35,14 @@ def test_dijkstra_finds_each_weighted_optimum():
     assert dijkstra(graph_data, "A", "D", 3) == (11, ["A", "B", "D"])
 
 
+def test_dijkstra_supports_string_and_enum_metrics():
+    graph_data = small_graph()
+    assert dijkstra(graph_data, "A", "D", "cost") == (5, ["A", "C", "B", "D"])
+    assert dijkstra(graph_data, "A", "D", "distance") == (6, ["A", "C", "B", "D"])
+    assert dijkstra(graph_data, "A", "D", "time") == (11, ["A", "B", "D"])
+    assert dijkstra(graph_data, "A", "D", Metric.COST) == (5, ["A", "C", "B", "D"])
+
+
 def test_bfs_returns_minimum_legs_and_totals_match_path():
     graph_data = small_graph()
     legs, path = bfs_fewest_legs(graph_data, "A", "D")
@@ -37,6 +55,7 @@ def test_unreachable_route_is_infinite_and_empty():
     graph_data = {"A": [], "B": []}
     assert dijkstra(graph_data, "A", "B", 1) == (float("inf"), [])
     assert bfs_fewest_legs(graph_data, "A", "B") == (float("inf"), [])
+    assert totals_along_path(graph_data, []) == (float("inf"), float("inf"), float("inf"))
 
 
 def test_duplicate_edge_fails_loudly_when_summing_totals():
@@ -80,3 +99,74 @@ def test_post_validation_and_same_route_message():
     response = client.post("/", data={"start": districts[0], "end": districts[0]})
     assert response.status_code == 200
     assert b"no travel is needed" in response.data
+
+
+def test_api_districts_endpoint():
+    client = app.test_client()
+    response = client.get("/api/districts")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "success"
+    assert payload["total_districts"] == 64
+    assert len(payload["districts"]) == 64
+    assert "Dhaka" in payload["coordinates"]
+    assert payload["coordinates"]["Dhaka"] == [23.8103, 90.4125]
+
+
+def test_api_routes_get_and_post():
+    client = app.test_client()
+
+    # GET with query params
+    res_get = client.get("/api/routes?start=Dhaka&end=Rajshahi")
+    assert res_get.status_code == 200
+    data_get = res_get.get_json()
+    assert data_get["status"] == "success"
+    assert data_get["data"]["start"] == "Dhaka"
+    assert data_get["data"]["end"] == "Rajshahi"
+    assert len(data_get["data"]["comparison"]) == 3
+
+    # POST with JSON body
+    res_post = client.post(
+        "/api/routes",
+        json={"start": "Dhaka", "end": "Chattogram"},
+        content_type="application/json",
+    )
+    assert res_post.status_code == 200
+    data_post = res_post.get_json()
+    assert data_post["status"] == "success"
+    assert data_post["data"]["start"] == "Dhaka"
+    assert data_post["data"]["end"] == "Chattogram"
+    assert "trade_offs" in data_post["data"]
+
+
+def test_api_routes_validation_errors():
+    client = app.test_client()
+    # Missing parameters
+    res_missing = client.get("/api/routes?start=Dhaka")
+    assert res_missing.status_code == 400
+
+    # Non-existent district
+    res_invalid = client.get("/api/routes?start=Dhaka&end=Atlantis")
+    assert res_invalid.status_code == 400
+    assert "Invalid districts" in res_invalid.get_json()["message"]
+
+
+def test_api_graph_endpoint():
+    client = app.test_client()
+    res = client.get("/api/graph")
+    assert res.status_code == 200
+    net = res.get_json()["network"]
+    assert net["nodes_count"] == 64
+    assert net["undirected_edges_count"] == 148
+    assert net["average_degree"] > 0
+    assert len(net["highest_connectivity_districts"]) == 10
+
+
+def test_clean_routes_functionality(tmp_path):
+    raw_path = Path(__file__).resolve().parents[1] / "route_infos.csv"
+    out_path = tmp_path / "cleaned_output.csv"
+    cleaned_df = clean_routes(source_path=raw_path, output_path=out_path, quiet=True)
+    assert len(cleaned_df) == 148
+    assert set(cleaned_df.columns) == {"from", "to", "cost", "distance_km", "time_minutes"}
+    assert out_path.exists()
+

@@ -3,54 +3,86 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ByteTrip | Travel Route Finder</title>
+    <title>ByteTrip | Bangladesh Inter-District Travel Route Finder</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <main class="page-shell">
         <header class="page-header home-header">
             <div class="brand-lockup">
-                <img class="logo" src="{{ url_for('static', filename='road.jpg') }}" alt="">
+                <img class="logo" src="{{ url_for('static', filename='road.jpg') }}" alt="ByteTrip Transit Icon">
                 <div>
                     <a class="brand" href="{{ url_for('index') }}">ByteTrip</a>
-                    <p>Code your route, Byte your trip.</p>
+                    <p class="tagline">Code your route, Byte your trip.</p>
                 </div>
             </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('readme') }}" class="nav-link">Documentation</a>
+                <a href="/api/districts" class="nav-link" target="_blank" rel="noopener">API</a>
+            </nav>
         </header>
 
+        {% if error %}
+            <div class="alert alert-error" role="alert">
+                <strong>Notice:</strong> {{ error }}
+            </div>
+        {% endif %}
+
         <section class="content-panel intro-panel" aria-labelledby="page-title">
-            <p class="eyebrow">Inter-district route planner</p>
-            <h1 id="page-title">Find a route across Bangladesh</h1>
-            <p class="lede">Compare the cheapest, shortest, fastest, and fewest-leg paths between districts.</p>
+            <p class="eyebrow">Bangladesh Inter-District Transit Network</p>
+            <h1 id="page-title">Find an optimal route across Bangladesh</h1>
+            <p class="lede">Compare mathematically optimal routes powered by <strong>Dijkstra’s Algorithm</strong> for fare, distance, and duration alongside <strong>Breadth-First Search (BFS)</strong> for fewest transfer hops across all 64 districts.</p>
 
-            <form method="post" class="route-form">
+            <!-- Popular Route Quick Selectors -->
+            <div class="quick-routes-section">
+                <span class="quick-routes-label">Popular Corridors:</span>
+                <div class="pills-container">
+                    {% for route in popular_routes %}
+                        <button type="button" class="route-pill" data-start="{{ route.from }}" data-end="{{ route.to }}">
+                            {{ route.label }}
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <form method="post" class="route-form" id="route-form">
                 <div class="field-group">
-                    <label for="start">From</label>
+                    <label for="start">Origin District</label>
                     <select id="start" name="start" required>
-                        <option value="" disabled selected>Choose a district</option>
+                        <option value="" disabled selected>Choose origin district</option>
                         {% for district in districts %}
                             <option value="{{ district }}">{{ district }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <button class="swap-button" id="swap-button" type="button" title="Swap start and destination" aria-label="Swap start and destination">&#8597;</button>
+                <button class="swap-button" id="swap-button" type="button" title="Swap origin and destination" aria-label="Swap origin and destination">&#8597;</button>
 
                 <div class="field-group">
-                    <label for="end">To</label>
+                    <label for="end">Destination District</label>
                     <select id="end" name="end" required>
-                        <option value="" disabled selected>Choose a district</option>
+                        <option value="" disabled selected>Choose destination district</option>
                         {% for district in districts %}
                             <option value="{{ district }}">{{ district }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <button class="button primary-button" type="submit">Find routes</button>
+                <button class="button primary-button" type="submit" id="submit-btn">
+                    <span>Calculate Optimal Routes</span>
+                    <span class="btn-arrow">→</span>
+                </button>
             </form>
-            <p class="data-note">Fares and times are placeholder estimates, not live operator data.</p>
+
+            <div class="data-notice">
+                <div class="data-notice-icon">ℹ️</div>
+                <div class="data-notice-text">
+                    <strong>Algorithmic Simulation:</strong> Fares (Tk), distances (km), and travel durations (minutes) are based on the sanitized transit dataset (148 inter-district links). Dijkstra solves independent single-objective shortest paths, while BFS identifies the fewest transit transfer legs.
+                </div>
+            </div>
         </section>
     </main>
+
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
