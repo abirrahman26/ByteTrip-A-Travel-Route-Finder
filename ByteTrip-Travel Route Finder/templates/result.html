@@ -1,65 +1,255 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Route Result</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Route: {{ results.start }} to {{ results.end }} | ByteTrip</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Leaflet CSS for interactive route map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 </head>
 <body>
-    <div class="container">
-        <h1 class="resultAndComparison">Results & Comparison</h1>
+    <main class="page-shell">
+        <header class="page-header">
+            <div class="brand-lockup">
+                <a class="brand" href="{{ url_for('index') }}">ByteTrip</a>
+                <p class="tagline">Code your route, Byte your trip.</p>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}" class="button secondary-button-sm">← New Search</a>
+                <a href="/api/routes?start={{ results.start }}&end={{ results.end }}" class="nav-link" target="_blank">View JSON</a>
+            </nav>
+        </header>
 
-        {% if results.note %}
-            <p class="result"><em>{{ results.note }}</em></p>
-        {% endif %}
+        <section class="content-panel" aria-labelledby="route-heading">
+            <p class="eyebrow">Algorithmic Route Evaluation</p>
+            <h1 id="route-heading">{{ results.start }} <span class="route-arrow">➔</span> {{ results.end }}</h1>
 
-        <h2 class="dijkstraa">Dijkstra (True Optima on Weighted Graphs)</h2>
-        <div class="result">
-            <p><strong>Cheapest path cost:</strong>
-                {{ "{:.0f}".format(results.dijkstra.cheapest.value) if results.dijkstra.cheapest.value is not none else "No route" }} Tk
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.cheapest.path) if results.dijkstra.cheapest.value is not none else "—" }}
-            </p>
+            <div class="route-meta-bar">
+                <span class="route-status-pill">64 Districts Graph</span>
+                <span class="route-status-pill">148 Transit Links</span>
+                <span class="route-status-pill">Dijkstra & BFS</span>
+            </div>
 
-            <p><strong>Shortest distance:</strong>
-                {{ "{:.0f}".format(results.dijkstra.shortest_distance.value) if results.dijkstra.shortest_distance.value is not none else "No route" }} km
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.shortest_distance.path) if results.dijkstra.shortest_distance.value is not none else "—" }}
-            </p>
+            {% if results.same_route %}
+                <div class="empty-state">
+                    <h3>Same Origin & Destination</h3>
+                    <p>{{ results.note }}</p>
+                    <a class="button primary-button" href="{{ url_for('index') }}" style="margin-top: 14px;">Choose Different Districts</a>
+                </div>
+            {% else %}
 
-            <p><strong>Shortest time:</strong>
-                {{ "{:.0f}".format(results.dijkstra.shortest_time.value) if results.dijkstra.shortest_time.value is not none else "No route" }} minutes
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.shortest_time.path) if results.dijkstra.shortest_time.value is not none else "—" }}
-            </p>
-        </div>
+                {% if results.trade_offs and results.trade_offs.speed_vs_cost %}
+                    <div class="trade-off-card">
+                        <div class="trade-off-badge">Key Trade-off Insight</div>
+                        <p>
+                            Taking the <strong>Fastest</strong> route saves 
+                            <strong>{{ results.trade_offs.speed_vs_cost.time_saved_minutes }} minutes</strong> 
+                            compared to the cheapest route for an additional fare of 
+                            <strong>{{ results.trade_offs.speed_vs_cost.additional_cost_tk }} Tk</strong>.
+                        </p>
+                    </div>
+                {% endif %}
 
-        <h2 class="bfss">BFS (Fewest Stops)</h2>
-        <div class="result">
-            <p><strong>Fewest stops (edges):</strong>
-                {{ results.bfs.fewest_stops.hops if results.bfs.fewest_stops.hops is not none else "No route" }}
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.bfs.fewest_stops.path) if results.bfs.fewest_stops.hops is not none else "—" }}
-            </p>
+                <!-- Interactive Map Section -->
+                <div class="map-section">
+                    <div class="map-header">
+                        <h2>Interactive Route Visualizer</h2>
+                        <div class="map-tabs" role="tablist">
+                            {% for row in results.comparison %}
+                                <button type="button" class="map-tab-btn {% if loop.first %}active{% endif %}" data-route-key="{{ row.key }}">
+                                    {{ row.label }}
+                                </button>
+                            {% endfor %}
+                            {% if results.bfs and results.bfs.legs is not none %}
+                                <button type="button" class="map-tab-btn" data-route-key="bfs">
+                                    Fewest Legs
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div id="route-map" class="route-map-container" aria-label="Interactive Bangladesh Map showing selected route"></div>
+                    <div id="map-fallback" class="map-fallback-banner" style="display: none;">
+                        <p>Interactive tiles loading or using offline mode. District coordinates mapped below.</p>
+                    </div>
+                </div>
 
-            <p><strong>Totals along BFS path</strong> <em>(not guaranteed optimal)</em>:</p>
-            <ul>
-                <li><strong>Cost:</strong> {{ "{:.0f}".format(results.bfs.totals.cost) if results.bfs.totals.cost is not none else "—" }} Tk</li>
-                <li><strong>Distance:</strong> {{ "{:.0f}".format(results.bfs.totals.distance) if results.bfs.totals.distance is not none else "—" }} km</li>
-                <li><strong>Time:</strong> {{ "{:.0f}".format(results.bfs.totals.time) if results.bfs.totals.time is not none else "—" }} minutes</li>
-            </ul>
-        </div>
+                <h2>Multi-Metric Route Comparison</h2>
+                <p class="section-intro">Dijkstra’s algorithm optimizes for each weighted criterion independently. A route optimized for one metric may not be optimal for another.</p>
 
-        <h2>Complexity</h2>
-        <div class="result">
-            <p><strong>Dijkstra:</strong> {{ results.complexity.dijkstra }}</p>
-            <p><strong>BFS:</strong> {{ results.complexity.bfs }}</p>
-        </div>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <caption class="sr-only">Route optimization results between {{ results.start }} and {{ results.end }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Perspective</th>
+                                <th scope="col">Primary Metric</th>
+                                <th scope="col">Transfers (Legs)</th>
+                                <th scope="col">Estimated Fare</th>
+                                <th scope="col">Distance</th>
+                                <th scope="col">Duration</th>
+                                <th scope="col">Transit Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results.comparison %}
+                                <tr>
+                                    <th scope="row">
+                                        <span class="metric-tag tag-{{ row.key }}">{{ row.label }}</span>
+                                    </th>
+                                    <td class="{% if row.result.value is not none %}best-value{% endif %}">
+                                        {% if row.result.value is none %}
+                                            <span class="unreachable">Unreachable</span>
+                                        {% else %}
+                                            <strong>{{ "%.0f"|format(row.result.value) }} {{ row.result.unit }}</strong>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if row.best_legs %}best-value{% endif %}">
+                                        {{ row.result.legs if row.result.legs is not none else "N/A" }}
+                                    </td>
+                                    <td>{{ row.result.totals.cost ~ " Tk" if row.result.totals.cost is not none else "—" }}</td>
+                                    <td>{{ row.result.totals.distance ~ " km" if row.result.totals.distance is not none else "—" }}</td>
+                                    <td>{{ row.result.totals.time ~ " mins" if row.result.totals.time is not none else "—" }}</td>
+                                    <td class="path-cell">
+                                        {% if row.result.path %}
+                                            {{ row.result.path|join(" → ") }}
+                                        {% else %}
+                                            <span class="unreachable">No route found</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            {% if results.bfs and results.bfs.legs is not none %}
+                                <tr class="bfs-row">
+                                    <th scope="row">
+                                        <span class="metric-tag tag-bfs">Fewest Legs (BFS)</span>
+                                    </th>
+                                    <td>—</td>
+                                    <td class="best-value"><strong>{{ results.bfs.legs }} legs</strong></td>
+                                    <td>{{ results.bfs.totals.cost ~ " Tk" if results.bfs.totals.cost is not none else "—" }}</td>
+                                    <td>{{ results.bfs.totals.distance ~ " km" if results.bfs.totals.distance is not none else "—" }}</td>
+                                    <td>{{ results.bfs.totals.time ~ " mins" if results.bfs.totals.time is not none else "—" }}</td>
+                                    <td class="path-cell">{{ results.bfs.path|join(" → ") }}</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
 
-        <a href="/" class="back-btn">Search Again</a>
-    </div>
+                <h2>Detailed Segment-by-Segment Breakdowns</h2>
+                <p class="section-intro">Inspect district hops, individual leg costs, distances, and drive times for each computed path.</p>
+
+                {% for row in results.comparison %}
+                    <details class="route-details" {% if loop.first %}open{% endif %}>
+                        <summary>
+                            <span class="summary-title">{{ row.label }} Route Breakdown</span>
+                            {% if row.result.value is not none %}
+                                <span class="summary-metric">{{ "%.0f"|format(row.result.value) }} {{ row.result.unit }} ({{ row.result.legs }} hops)</span>
+                            {% endif %}
+                        </summary>
+                        {% if row.result.path %}
+                            <div class="table-wrap">
+                                <table class="breakdown-table">
+                                    <caption class="sr-only">Hop-by-hop breakdown for {{ row.label }} route</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">From</th>
+                                            <th scope="col">To</th>
+                                            <th scope="col">Segment Fare</th>
+                                            <th scope="col">Distance</th>
+                                            <th scope="col">Duration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for leg in row.result.leg_rows %}
+                                            <tr>
+                                                <td>{{ loop.index }}</td>
+                                                <td><strong>{{ leg.from }}</strong></td>
+                                                <td><strong>{{ leg.to }}</strong></td>
+                                                <td>{{ leg.cost }} Tk</td>
+                                                <td>{{ leg.distance }} km</td>
+                                                <td>{{ leg.time }} mins</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="3" scope="row">Total Cumulative</th>
+                                            <th>{{ row.result.totals.cost }} Tk</th>
+                                            <th>{{ row.result.totals.distance }} km</th>
+                                            <th>{{ row.result.totals.time }} mins</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="unreachable">No reachable route found between these districts.</p>
+                        {% endif %}
+                    </details>
+                {% endfor %}
+
+                {% if results.bfs and results.bfs.legs is not none %}
+                    <details class="route-details">
+                        <summary>
+                            <span class="summary-title">Fewest-Leg (BFS) Route Breakdown</span>
+                            <span class="summary-metric">{{ results.bfs.legs }} hops ({{ results.bfs.totals.cost }} Tk, {{ results.bfs.totals.distance }} km)</span>
+                        </summary>
+                        <div class="table-wrap">
+                            <table class="breakdown-table">
+                                <caption class="sr-only">Hop-by-hop breakdown for fewest legs route</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">#</th>
+                                        <th scope="col">From</th>
+                                        <th scope="col">To</th>
+                                        <th scope="col">Segment Fare</th>
+                                        <th scope="col">Distance</th>
+                                        <th scope="col">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for leg in results.bfs.leg_rows %}
+                                        <tr>
+                                            <td>{{ loop.index }}</td>
+                                            <td><strong>{{ leg.from }}</strong></td>
+                                            <td><strong>{{ leg.to }}</strong></td>
+                                            <td>{{ leg.cost }} Tk</td>
+                                            <td>{{ leg.distance }} km</td>
+                                            <td>{{ leg.time }} mins</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="3" scope="row">Total Cumulative</th>
+                                        <th>{{ results.bfs.totals.cost }} Tk</th>
+                                        <th>{{ results.bfs.totals.distance }} km</th>
+                                        <th>{{ results.bfs.totals.time }} mins</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </details>
+                {% endif %}
+
+            {% endif %}
+
+            <div class="action-footer">
+                <a class="button primary-button" href="{{ url_for('index') }}">Plan Another Route</a>
+                <button type="button" class="button secondary-button" onclick="window.print()">Print Route Report</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Pass structured route data to client-side script -->
+    <script>
+        window.BYTE_TRIP_DATA = {{ results|tojson }};
+        window.DISTRICT_COORDS = {{ coordinates|tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
