@@ -1,33 +1,56 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>Travel Route Finder</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ByteTrip | Travel Route Finder</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <nav>
-            <img class="logo" src="{{ url_for('static', filename='road.jpg') }}" alt="logo">
-            <h1>ByteTrip: Code your route, Byte your trip.</h1>
-        </nav>
+    <main class="page-shell">
+        <header class="page-header home-header">
+            <div class="brand-lockup">
+                <img class="logo" src="{{ url_for('static', filename='road.jpg') }}" alt="">
+                <div>
+                    <a class="brand" href="{{ url_for('index') }}">ByteTrip</a>
+                    <p>Code your route, Byte your trip.</p>
+                </div>
+            </div>
+        </header>
 
-        <form method="POST" style="margin-top: 20px;">
-            <label>From:</label>
-            <select name="start" required>
-                {% for district in districts %}
-                    <option value="{{ district }}">{{ district }}</option>
-                {% endfor %}
-            </select>
+        <section class="content-panel intro-panel" aria-labelledby="page-title">
+            <p class="eyebrow">Inter-district route planner</p>
+            <h1 id="page-title">Find a route across Bangladesh</h1>
+            <p class="lede">Compare the cheapest, shortest, fastest, and fewest-leg paths between districts.</p>
 
-            <label>To:</label>
-            <select name="end" required>
-                {% for district in districts %}
-                    <option value="{{ district }}">{{ district }}</option>
-                {% endfor %}
-            </select>
+            <form method="post" class="route-form">
+                <div class="field-group">
+                    <label for="start">From</label>
+                    <select id="start" name="start" required>
+                        <option value="" disabled selected>Choose a district</option>
+                        {% for district in districts %}
+                            <option value="{{ district }}">{{ district }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <button type="submit">Find Routes</button>
-        </form>
-    </div>
+                <button class="swap-button" id="swap-button" type="button" title="Swap start and destination" aria-label="Swap start and destination">&#8597;</button>
+
+                <div class="field-group">
+                    <label for="end">To</label>
+                    <select id="end" name="end" required>
+                        <option value="" disabled selected>Choose a district</option>
+                        {% for district in districts %}
+                            <option value="{{ district }}">{{ district }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button class="button primary-button" type="submit">Find routes</button>
+            </form>
+            <p class="data-note">Fares and times are placeholder estimates, not live operator data.</p>
+        </section>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

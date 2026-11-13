@@ -6,60 +6,112 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="resultAndComparison">Results & Comparison</h1>
+    <main class="page-shell">
+        <header class="page-header">
+            <a class="brand" href="{{ url_for('index') }}">ByteTrip</a>
+            <p>Code your route, Byte your trip.</p>
+        </header>
 
-        {% if results.note %}
-            <p class="result"><em>{{ results.note }}</em></p>
-        {% endif %}
+        <section class="content-panel" aria-labelledby="route-heading">
+            <p class="eyebrow">Route comparison</p>
+            <h1 id="route-heading">From {{ results.start }} to {{ results.end }}</h1>
+            <p class="notice">Fares and times are placeholder estimates, not live operator data. <a href="{{ url_for('readme') }}">Read the project notes</a>.</p>
+            <p class="route-note">{{ results.note }}</p>
 
-        <h2 class="dijkstraa">Dijkstra (True Optima on Weighted Graphs)</h2>
-        <div class="result">
-            <p><strong>Cheapest path cost:</strong>
-                {{ "{:.0f}".format(results.dijkstra.cheapest.value) if results.dijkstra.cheapest.value is not none else "No route" }} Tk
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.cheapest.path) if results.dijkstra.cheapest.value is not none else "—" }}
-            </p>
+            {% if results.same_route %}
+                <p class="empty-state">{{ results.note }}</p>
+            {% else %}
+                <h2>Weighted routes</h2>
+                <p class="section-intro">Dijkstra finds the best weighted route for each row. A leg is one direct connection between two districts.</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <caption class="sr-only">Comparison of route options from {{ results.start }} to {{ results.end }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Metric</th>
+                                <th scope="col">Total</th>
+                                <th scope="col">Legs</th>
+                                <th scope="col">Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results.comparison %}
+                                <tr>
+                                    <th scope="row">{{ row.label }}</th>
+                                    <td class="{% if row.result.value is not none %}best-value{% endif %}">
+                                        {% if row.result.value is none %}
+                                            <span class="unreachable">No route found</span>
+                                        {% else %}
+                                            {{ "%.0f"|format(row.result.value) }} {{ row.result.unit }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if row.best_legs %}best-value{% endif %}">
+                                        {{ row.result.legs if row.result.legs is not none else "No route found" }}
+                                    </td>
+                                    <td>
+                                        {% if row.result.path %}
+                                            {{ row.result.path|join(" → ") }}
+                                        {% else %}
+                                            <span class="unreachable">No route found</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-            <p><strong>Shortest distance:</strong>
-                {{ "{:.0f}".format(results.dijkstra.shortest_distance.value) if results.dijkstra.shortest_distance.value is not none else "No route" }} km
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.shortest_distance.path) if results.dijkstra.shortest_distance.value is not none else "—" }}
-            </p>
+                <h2>Chosen-route details</h2>
+                {% for row in results.comparison %}
+                    <details class="route-details">
+                        <summary>{{ row.label }} route</summary>
+                        {% if row.result.path %}
+                            <div class="table-wrap">
+                                <table>
+                                    <caption class="sr-only">Leg breakdown for the {{ row.label|lower }} route</caption>
+                                    <thead>
+                                        <tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Fare</th><th scope="col">km</th><th scope="col">Minutes</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for leg in row.result.leg_rows %}
+                                            <tr><td>{{ leg.from }}</td><td>{{ leg.to }}</td><td>{{ leg.cost }} Tk</td><td>{{ leg.distance }}</td><td>{{ leg.time }}</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr><th colspan="2" scope="row">Total</th><td>{{ row.result.totals.cost }} Tk</td><td>{{ row.result.totals.distance }}</td><td>{{ row.result.totals.time }}</td></tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="unreachable">No route found for this metric.</p>
+                        {% endif %}
+                    </details>
+                {% endfor %}
 
-            <p><strong>Shortest time:</strong>
-                {{ "{:.0f}".format(results.dijkstra.shortest_time.value) if results.dijkstra.shortest_time.value is not none else "No route" }} minutes
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.dijkstra.shortest_time.path) if results.dijkstra.shortest_time.value is not none else "—" }}
-            </p>
-        </div>
+                <h2>Fewest-leg route</h2>
+                <p class="section-intro">BFS finds the fewest legs. Its fare, distance, and time are totals along that route, not weighted optima.</p>
+                {% if results.bfs.legs is none %}
+                    <p class="unreachable">No route found.</p>
+                {% else %}
+                    <p><strong>{{ results.bfs.legs }} legs:</strong> {{ results.bfs.path|join(" → ") }}</p>
+                    <div class="table-wrap">
+                        <table>
+                            <caption class="sr-only">Leg breakdown for the fewest-leg route</caption>
+                            <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Fare</th><th scope="col">km</th><th scope="col">Minutes</th></tr></thead>
+                            <tbody>
+                                {% for leg in results.bfs.leg_rows %}
+                                    <tr><td>{{ leg.from }}</td><td>{{ leg.to }}</td><td>{{ leg.cost }} Tk</td><td>{{ leg.distance }}</td><td>{{ leg.time }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot><tr><th colspan="2" scope="row">Total</th><td>{{ results.bfs.totals.cost }} Tk</td><td>{{ results.bfs.totals.distance }}</td><td>{{ results.bfs.totals.time }}</td></tr></tfoot>
+                        </table>
+                    </div>
+                {% endif %}
+            {% endif %}
 
-        <h2 class="bfss">BFS (Fewest Stops)</h2>
-        <div class="result">
-            <p><strong>Fewest stops (edges):</strong>
-                {{ results.bfs.fewest_stops.hops if results.bfs.fewest_stops.hops is not none else "No route" }}
-            </p>
-            <p class="path"><strong>Path:</strong>
-                {{ " → ".join(results.bfs.fewest_stops.path) if results.bfs.fewest_stops.hops is not none else "—" }}
-            </p>
+            <a class="button secondary-button" href="{{ url_for('index') }}">Search again</a>
+        </section>
+    </main>
 
-            <p><strong>Totals along BFS path</strong> <em>(not guaranteed optimal)</em>:</p>
-            <ul>
-                <li><strong>Cost:</strong> {{ "{:.0f}".format(results.bfs.totals.cost) if results.bfs.totals.cost is not none else "—" }} Tk</li>
-                <li><strong>Distance:</strong> {{ "{:.0f}".format(results.bfs.totals.distance) if results.bfs.totals.distance is not none else "—" }} km</li>
-                <li><strong>Time:</strong> {{ "{:.0f}".format(results.bfs.totals.time) if results.bfs.totals.time is not none else "—" }} minutes</li>
-            </ul>
-        </div>
-
-        <h2>Complexity</h2>
-        <div class="result">
-            <p><strong>Dijkstra:</strong> {{ results.complexity.dijkstra }}</p>
-            <p><strong>BFS:</strong> {{ results.complexity.bfs }}</p>
-        </div>
-
-        <a href="/" class="back-btn">Search Again</a>
-    </div>
 </body>
 </html>

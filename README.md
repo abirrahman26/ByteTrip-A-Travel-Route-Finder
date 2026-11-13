@@ -1,30 +1,69 @@
-# ByteTrip-A-Travel-Route-Finder
+# ByteTrip: Travel Route Finder
 
+ByteTrip is a small Flask portfolio prototype for comparing inter-district
+routes in Bangladesh. Choose an origin and destination to see the cheapest,
+shortest-distance, fastest, and fewest-leg options, including the individual
+legs that make up each route.
 
-Navigating inter-district public transport in Bangladesh can be confusing for
-travelers and daily commuters alike. Whether it’s a student traveling from Khulna to
-Dhaka, or a trader heading from Rajshahi to Sylhet — most passengers are unaware
-of the cheapest or fastest routes, especially when multiple transfers are involved or
-when indirect routes offer better savings.
-The absence of a digital, optimized route planner leads to inefficient travel decisions
-— causing higher travel costs, longer journey times, and overall inconvenience.
-Commuters often rely on guesswork or word of mouth, which results in unnecessary
-route switches, overpriced tickets, and hours wasted on suboptimal paths. While
-GPS apps offer road directions, they lack the intelligence to factor in public transport
-fare policies, route constraints— making them unreliable for real-world inter-district
-bus travel.
-The goal of this project is to design and implement an intelligent Inter-District
-Route Planner for Bangladesh’s public transport system. This system aims to help
-tourists, students, traders, and travelers make better route decisions by providing
-optimized travel suggestions based on cost, time, and distance (hops).
-We have implement an intelligent web-based tool to find the shortest, cheapest, and
-time reducing paths across Bangladesh.
+## Important data note
 
+The fares, distances, and travel times are placeholder values. They are not
+live operator data, official schedules, or travel advice. The results only show
+what the algorithms produce from the included CSV data.
 
-## **Visual Representation of our Graph using Diagram**
-<img width="759" height="535" alt="image" src="https://github.com/user-attachments/assets/dfa4e430-43d5-4c8d-9287-67cda750bb6b" />
+The original `route_infos.csv` is kept as the raw source. Run
+`clean_routes.py` to generate `route_infos_clean.csv`, which the app reads.
+The cleaning rules normalize known district spelling variants, divide fares by
+10 when the raw fare is at least 500 Tk, and resolve conflicting duplicate
+undirected pairs by taking the maximum value independently for cost, distance,
+and time. See [`data/README.md`](ByteTrip-Travel%20Route%20Finder/data/README.md)
+for the full rules and data credit.
 
+## Algorithms
 
-## Interface
-<img width="1087" height="471" alt="image" src="https://github.com/user-attachments/assets/82d3b261-adaa-4695-ac43-9ea8b5c45db5" />
+**Dijkstra** finds a best route for one weighted measure at a time: fare,
+distance, or travel time. A route that is best for one measure is not promised
+to be best for the others.
 
+**Breadth-first search (BFS)** finds the route with the fewest direct legs.
+Its fare, distance, and time are then summed along that route, so those totals
+are comparisons rather than weighted optima.
+
+## Setup
+
+From the project directory:
+
+```powershell
+cd "ByteTrip-Travel Route Finder"
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python clean_routes.py
+python app.py
+```
+
+Open `http://127.0.0.1:5000` in a browser. Set `BYTETRIP_DEBUG=1` only when
+debug output is needed; debug mode is off by default.
+
+Run the tests with:
+
+```powershell
+python -m pytest -q
+```
+
+## What this fork changed
+
+- Added deterministic raw-data cleaning and generated clean route data.
+- Made data loading independent of the current working directory.
+- Reworked route reconstruction and added focused algorithm and data tests.
+- Added input validation, explicit unreachable-route handling, and correct
+  fewest-leg terminology.
+- Reworked the interface with accessible controls, route comparison tables,
+  per-leg breakdowns, responsive styling, and a local data notice.
+
+## Credit
+
+The original project and raw source data come from Abir Rahman Sakin's
+[ByteTrip-A-Travel-Route-Finder repository](https://github.com/abirrahman26/ByteTrip-A-Travel-Route-Finder).
+This repository is a cleaned-up educational fork and remains a portfolio
+prototype, not a production route service.
