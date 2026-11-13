@@ -59,10 +59,10 @@ function initRouteMap() {
     let activeLayerGroup = L.layerGroup().addTo(map);
 
     const routeColorMap = {
-        "cheapest": "#059669",
-        "shortest_distance": "#2563eb",
-        "fastest": "#d97706",
-        "bfs": "#7c3aed"
+        "cheapest": "#66745b",
+        "shortest_distance": "#827568",
+        "fastest": "#eb5e28",
+        "bfs": "#403d39"
     };
 
     function renderRouteOnMap(routeKey) {
